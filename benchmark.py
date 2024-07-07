@@ -23,6 +23,7 @@ from transformers import AutoProcessor, AutoModel, AutoTokenizer
 from datasets import load_dataset
 import torch
 import json
+import numpy as np
 from tqdm.auto import tqdm
 import os
 
@@ -130,40 +131,6 @@ def run_benchmark(model_id, output_dir):
 
     print("データセットを読み込んでいます")
     dataset = load_dataset("HachiML/timeseries_simpleQA_ja", split="test")
-
-    pythonCopyfrom sklearn.metrics import precision_recall_fscore_support, confusion_matrix
-import numpy as np
-
-def evaluate_trend(model_output):
-    trends = []
-    if "上" in model_output:
-        trends.append("上昇")
-    if "下" in model_output:
-        trends.append("下降")
-    if "せん" in model_output:
-        trends.append("トレンドなし")
-    
-    if not trends:
-        return "不明"
-    elif len(trends) == 1:
-        return trends[0]
-    else:
-        # 複数のトレンドが検出された場合、最初のものを返す（または他の処理を行う）
-        return trends[0]
-
-def get_true_trend(messages):
-    assistant_content = messages[1]["content"]
-    if "上昇" in assistant_content:
-        return "上昇"
-    elif "下降" in assistant_content:
-        return "下降"
-    elif "せん" in assistant_content:
-        return "トレンドなし"
-    else:
-        return "不明"
-
-def run_benchmark(model_id, output_dir):
-    # ... (前の部分は同じ) ...
 
     true_trends = []
     predicted_trends = []

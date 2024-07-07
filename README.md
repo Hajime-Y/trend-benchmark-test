@@ -6,8 +6,8 @@
 
 1. clone
 ```
-git clone <repository_url>
-cd <repository_name>
+git clone https://github.com/Hajime-Y/trend-benchmark-test.git
+cd trend-benchmark-test
 ```
 
 2. packeges

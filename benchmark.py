@@ -18,11 +18,12 @@ HuggingFace Hubの HachiML/timeseries_simpleQA_ja のtest splitを使用し、
 """
 
 import argparse
+from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from transformers import AutoProcessor, AutoModel, AutoTokenizer
 from datasets import load_dataset
 import torch
 import json
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import os
 
 def generate_response(content, time_series_data, max_new_tokens=100):
@@ -130,8 +131,42 @@ def run_benchmark(model_id, output_dir):
     print("データセットを読み込んでいます")
     dataset = load_dataset("HachiML/timeseries_simpleQA_ja", split="test")
 
-    correct = 0
-    total = 0
+    pythonCopyfrom sklearn.metrics import precision_recall_fscore_support, confusion_matrix
+import numpy as np
+
+def evaluate_trend(model_output):
+    trends = []
+    if "上" in model_output:
+        trends.append("上昇")
+    if "下" in model_output:
+        trends.append("下降")
+    if "せん" in model_output:
+        trends.append("トレンドなし")
+    
+    if not trends:
+        return "不明"
+    elif len(trends) == 1:
+        return trends[0]
+    else:
+        # 複数のトレンドが検出された場合、最初のものを返す（または他の処理を行う）
+        return trends[0]
+
+def get_true_trend(messages):
+    assistant_content = messages[1]["content"]
+    if "上昇" in assistant_content:
+        return "上昇"
+    elif "下降" in assistant_content:
+        return "下降"
+    elif "せん" in assistant_content:
+        return "トレンドなし"
+    else:
+        return "不明"
+
+def run_benchmark(model_id, output_dir):
+    # ... (前の部分は同じ) ...
+
+    true_trends = []
+    predicted_trends = []
 
     print("評価を開始します")
     for item in tqdm(dataset, desc="評価中"):
@@ -142,14 +177,31 @@ def run_benchmark(model_id, output_dir):
         model_prediction = evaluate_trend(response)
         true_trend = get_true_trend(item["messages"])
 
-        if model_prediction == true_trend:
-            correct += 1
-        total += 1
+        true_trends.append(true_trend)
+        predicted_trends.append(model_prediction)
 
-    score = correct / total if total > 0 else 0
-    print(f"評価完了。スコア: {score:.4f}")
+    # 評価指標の計算
+    precision, recall, f1, _ = precision_recall_fscore_support(true_trends, predicted_trends, average='weighted')
+    accuracy = np.mean(np.array(true_trends) == np.array(predicted_trends))
+    conf_matrix = confusion_matrix(true_trends, predicted_trends)
 
-    results = {model_id: score}
+    print(f"評価完了。")
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1-score: {f1:.4f}")
+    print("Confusion Matrix:")
+    print(conf_matrix)
+
+    results = {
+        "model_id": model_id,
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1,
+        "confusion_matrix": conf_matrix.tolist()
+    }
+
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f"results_{model_id.replace('/', '_')}.json")
     
@@ -157,7 +209,7 @@ def run_benchmark(model_id, output_dir):
         json.dump(results, f, indent=2)
     
     print(f"結果を保存しました: {output_file}")
-    return score
+    return results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="マルチモーダルモデルのベンチマークを実行します")
